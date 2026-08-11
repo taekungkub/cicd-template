@@ -1,0 +1,4 @@
+# External Secrets Operator — ค่า default พอสำหรับ MVP
+installCRDs: true
+replicaCount: 1
+# ไม่ต้องตั้งอะไรเพิ่ม — การเชื่อม OpenBao อยู่ใน SecretStore (secretstore.yaml)

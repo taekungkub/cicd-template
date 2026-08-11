@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: sample-app
+  namespace: sample-app
+spec:
+  selector: { app: sample-app }
+  ports:
+    - port: 80
+      targetPort: 80
+  # ดูผลผ่าน: kubectl -n sample-app port-forward svc/sample-app 8888:80

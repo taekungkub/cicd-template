@@ -1,0 +1,60 @@
+# ---- Secrets / credentials (สำคัญสุด — อย่าให้หลุด) ----
+*.env
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.pfx
+*.p12
+*_token
+*.token
+secrets.*
+*-secret.yaml
+*-secrets.yaml
+credentials.*
+kubeconfig
+*.kubeconfig
+.vault-token
+.bao-token
+
+# ---- Terraform (เผื่อเฟส infra) ----
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+
+# ---- Helm ----
+charts/**/charts/
+*.tgz
+
+# ---- Docker / compose ----
+compose/.env
+docker-compose.override.yml
+
+# ---- Node / build artifacts (เผื่อ app จริง) ----
+node_modules/
+dist/
+build/
+target/
+*.log
+
+# ---- OS / editor ----
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+*.swp
+*~
+
+# ---- VS Code (เก็บ settings ที่แชร์ได้ ยกเว้นส่วนเครื่องตัวเอง) ----
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# ---- Scratch / temp ----
+tmp/
+temp/
+*.bak

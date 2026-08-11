@@ -1,0 +1,28 @@
+# Jenkins (Helm chart jenkins/jenkins) — minimal สำหรับ MVP
+controller:
+  # plugin ที่ต้องมี: kubernetes agent, git, pipeline, JCasC, credentials
+  installPlugins:
+    - kubernetes:latest
+    - workflow-aggregator:latest
+    - git:latest
+    - configuration-as-code:latest
+    - credentials-binding:latest
+  # โหลด config จาก casc.yaml (Config-as-Code) แทนการตั้งผ่าน UI
+  JCasC:
+    defaultConfig: true
+    configScripts:
+      mvp-config: |
+        # เนื้อหาจริงอยู่ใน platform/jenkins/casc.yaml
+        # ตอน deploy จริงให้ paste เนื้อหา casc.yaml มาไว้ตรงนี้ หรือ mount เป็น ConfigMap
+        jenkins:
+          systemMessage: "CICD Template MVP - Jenkins + ArgoCD + OpenBao"
+
+agent:
+  enabled: true          # ephemeral pod agent (spawn ต่อ build แล้วลบ)
+
+persistence:
+  enabled: true
+  size: 8Gi
+
+serviceAccount:
+  create: true           # SA สำหรับ spawn agent pod

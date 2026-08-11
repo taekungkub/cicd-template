@@ -1,0 +1,8 @@
+# OpenBao — DEV MODE (in-memory, auto-unseal, root token คงที่)
+# ⚠️ สำหรับทดสอบ loop เท่านั้น ห้ามใช้บน prod — ข้อมูลหายเมื่อ pod restart
+# เฟสถัดไปจะเปลี่ยนเป็น Raft HA + auto-unseal (ดู docs/mvp-spec.md §7)
+server:
+  dev:
+    enabled: true
+    devRootToken: "root"     # token คงที่ ใช้ config ง่ายๆ
+  # dev mode = 1 replica, unseal อัตโนมัติ, ไม่ต้องตั้ง storage

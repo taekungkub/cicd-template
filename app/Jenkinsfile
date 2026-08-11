@@ -1,0 +1,34 @@
+// Jenkinsfile (MVP ง่ายสุด): GitHub push -> Jenkins build
+// ยังไม่มี registry/deploy — แค่พิสูจน์ว่า trigger + build เดินได้ และต่อ OpenBao ได้
+pipeline {
+  agent any
+  triggers {
+    // poll GitHub ทุก 1 นาที (ง่ายสุดสำหรับ Jenkins ที่รัน localhost)
+    // ถ้าอยากได้ push แบบ real-time ต้องเปิด webhook ผ่าน ngrok — ดู compose/README.md
+    pollSCM('* * * * *')
+  }
+  stages {
+    stage('Checkout') {
+      steps { checkout scm }
+    }
+    stage('Build') {
+      steps {
+        echo '🔨 building sample app...'
+        sh 'ls -la app/'          // แทน build จริง — พิสูจน์ว่าดึงโค้ดมาได้
+      }
+    }
+    stage('Read secret from OpenBao') {
+      steps {
+        // Jenkins คุยกับ OpenBao ผ่าน network ของ compose (service name = openbao)
+        sh '''
+          echo "ลองอ่าน secret จาก OpenBao:"
+          curl -s -H "X-Vault-Token: root" \
+            http://openbao:8200/v1/secret/data/sample-app || echo "(ยังไม่ได้ seed? รัน compose/seed-openbao.sh)"
+        '''
+      }
+    }
+  }
+  post {
+    success { echo '✅ pipeline ผ่าน — trigger + build + OpenBao เดินได้' }
+  }
+}

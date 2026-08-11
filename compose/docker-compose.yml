@@ -1,0 +1,41 @@
+# CICD Template — local control plane (docker compose) — minimal
+# รันแค่ Jenkins + OpenBao ; ใช้ GitHub เป็น repo (ไม่ต้องมี git server ในเครื่อง)
+# ส่วน ArgoCD/k8s ดู compose/README.md (ใช้ k3d เพราะ ArgoCD ต้องการ Kubernetes)
+#
+# ใช้งาน:  cd compose && docker compose up -d
+# ปิด:     docker compose down          (เพิ่ม -v ถ้าอยากลบ volume ด้วย)
+
+name: cicd-template
+
+services:
+  # ---- OpenBao (dev mode) : secret store ----
+  openbao:
+    image: ghcr.io/openbao/openbao:2.0
+    container_name: openbao
+    command: server -dev -dev-root-token-id=root -dev-listen-address=0.0.0.0:8200
+    environment:
+      BAO_DEV_ROOT_TOKEN_ID: root
+      BAO_ADDR: http://0.0.0.0:8200
+    cap_add: [IPC_LOCK]
+    ports:
+      - "8200:8200"      # UI/API:  http://localhost:8200  (token: root)
+    restart: unless-stopped
+
+  # ---- Jenkins : CI (trigger + build) ----
+  # mount docker socket ไว้เผื่ออยาก build image ทีหลัง (ตอนนี้ยังไม่ต้อง)
+  jenkins:
+    image: jenkins/jenkins:lts-jdk17
+    container_name: jenkins
+    user: root                                  # ให้เข้าถึง docker socket ได้
+    environment:
+      JENKINS_OPTS: "--prefix=/"
+    ports:
+      - "8081:8080"      # UI:  http://localhost:8081
+      - "50000:50000"    # agent
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock   # เผื่อ build image ผ่าน host docker
+    restart: unless-stopped
+
+volumes:
+  jenkins_home:

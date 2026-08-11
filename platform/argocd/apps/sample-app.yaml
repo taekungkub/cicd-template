@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: sample-app
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: <YOUR_GIT_REPO_URL>      # <-- แก้เป็น repo ที่มี gitops/ ของคุณ
+    targetRevision: main
+    path: gitops/sample-app
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: sample-app
+  syncPolicy:
+    automated:
+      prune: true        # ลบ resource ที่หายไปจาก Git ด้วย
+      selfHeal: true     # ถ้ามีคนแก้ cluster ตรงๆ ให้ดึงกลับตาม Git
+    syncOptions:
+      - CreateNamespace=true

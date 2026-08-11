@@ -1,0 +1,48 @@
+# Jenkins Configuration-as-Code (JCasC) — minimal MVP
+# วิธีใช้: mount เป็น ConfigMap แล้วชี้ CASC_JENKINS_CONFIG มาที่ไฟล์นี้
+# หรือ paste เข้า controller.JCasC.configScripts ใน values.yaml
+jenkins:
+  systemMessage: "CICD Template MVP - Jenkins + ArgoCD + OpenBao"
+  numExecutors: 0            # ไม่รันงานบน controller ใช้ agent pod อย่างเดียว
+  clouds:
+    - kubernetes:
+        name: "kubernetes"
+        namespace: "jenkins"
+        jenkinsUrl: "http://jenkins.jenkins.svc:8080"
+        templates:
+          - name: "builder"
+            label: "builder"
+            containers:
+              - name: "builder"
+                image: "docker:27-cli"     # มี docker CLI สำหรับ build/push
+                command: "sleep"
+                args: "9999999"
+                ttyEnabled: true
+
+# ตัวอย่าง credential (ของจริงควรมาจาก OpenBao ในเฟสถัดไป)
+credentials:
+  system:
+    domainCredentials:
+      - credentials:
+          - usernamePassword:
+              scope: GLOBAL
+              id: "registry-cred"
+              username: "<REGISTRY_USER>"
+              password: "<REGISTRY_PASS>"   # TODO: ย้ายไป OpenBao
+
+# Seed job ชี้ Jenkinsfile ใน repo
+jobs:
+  - script: |
+      pipelineJob('sample-app') {
+        definition {
+          cpsScmFlowDefinition {
+            scm {
+              git {
+                remote { url('<YOUR_GIT_REPO_URL>') }
+                branch('main')
+              }
+            }
+            scriptPath('app/Jenkinsfile')
+          }
+        }
+      }
