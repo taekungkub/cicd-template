@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: <YOUR_GIT_REPO_URL>      # <-- แก้เป็น repo ที่มี gitops/ ของคุณ
+    repoURL: https://github.com/taekungkub/cicd-template.git
     targetRevision: main
     path: gitops/sample-app
   destination:

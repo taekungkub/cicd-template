@@ -38,7 +38,7 @@ jobs:
           cpsScmFlowDefinition {
             scm {
               git {
-                remote { url('<YOUR_GIT_REPO_URL>') }
+                remote { url('https://github.com/taekungkub/cicd-template.git') }
                 branch('main')
               }
             }

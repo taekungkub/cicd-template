@@ -10,7 +10,7 @@ name: cicd-template
 services:
   # ---- OpenBao (dev mode) : secret store ----
   openbao:
-    image: ghcr.io/openbao/openbao:2.0
+    image: ghcr.io/openbao/openbao:2.6.1
     container_name: openbao
     command: server -dev -dev-root-token-id=root -dev-listen-address=0.0.0.0:8200
     environment:
@@ -18,7 +18,7 @@ services:
       BAO_ADDR: http://0.0.0.0:8200
     cap_add: [IPC_LOCK]
     ports:
-      - "8200:8200"      # UI/API:  http://localhost:8200  (token: root)
+      - "18200:8200"     # UI/API:  http://localhost:18200  (token: root)  [host 8200 ถูก Windows จอง]
     restart: unless-stopped
 
   # ---- Jenkins : CI (trigger + build) ----
@@ -30,7 +30,7 @@ services:
     environment:
       JENKINS_OPTS: "--prefix=/"
     ports:
-      - "8081:8080"      # UI:  http://localhost:8081
+      - "9090:8080"      # UI:  http://localhost:9090  [host 8081 ถูก Windows จอง]
       - "50000:50000"    # agent
     volumes:
       - jenkins_home:/var/jenkins_home

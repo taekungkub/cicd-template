@@ -1,11 +1,13 @@
-// Jenkinsfile (MVP ง่ายสุด): GitHub push -> Jenkins build
-// ยังไม่มี registry/deploy — แค่พิสูจน์ว่า trigger + build เดินได้ และต่อ OpenBao ได้
+// Jenkinsfile (MVP): GitHub push -> Jenkins build -> inject secret จาก OpenBao เป็น env var
+// ใช้ HashiCorp Vault plugin (OpenBao = Vault API) — token มาจาก Jenkins credential ไม่ hardcode
+//
+// ต้องมีก่อนรัน:
+//   1) ติดตั้ง plugin "HashiCorp Vault"
+//   2) เพิ่ม credential id = 'openbao-token' (Vault Token / Secret text = "root")
 pipeline {
   agent any
   triggers {
-    // poll GitHub ทุก 1 นาที (ง่ายสุดสำหรับ Jenkins ที่รัน localhost)
-    // ถ้าอยากได้ push แบบ real-time ต้องเปิด webhook ผ่าน ngrok — ดู compose/README.md
-    pollSCM('* * * * *')
+    pollSCM('* * * * *')   // poll GitHub ทุก 1 นาที
   }
   stages {
     stage('Checkout') {
@@ -14,21 +16,35 @@ pipeline {
     stage('Build') {
       steps {
         echo '🔨 building sample app...'
-        sh 'ls -la app/'          // แทน build จริง — พิสูจน์ว่าดึงโค้ดมาได้
+        sh 'ls -la app/'
       }
     }
-    stage('Read secret from OpenBao') {
+    stage('Use secret from OpenBao') {
       steps {
-        // Jenkins คุยกับ OpenBao ผ่าน network ของ compose (service name = openbao)
-        sh '''
-          echo "ลองอ่าน secret จาก OpenBao:"
-          curl -s -H "X-Vault-Token: root" \
-            http://openbao:8200/v1/secret/data/sample-app || echo "(ยังไม่ได้ seed? รัน compose/seed-openbao.sh)"
-        '''
+        script {
+          // ดึง secret จาก OpenBao มา map เป็น env var
+          def secrets = [[
+            path: 'secret/sample-app',        // KV v2 path (plugin เติม /data ให้เอง)
+            engineVersion: 2,
+            secretValues: [
+              [envVar: 'DB_PASSWORD', vaultKey: 'db_password']
+            ]
+          ]]
+          def configuration = [
+            vaultUrl: 'http://openbao:8200',  // service name ใน compose network
+            vaultCredentialId: 'openbao-token',
+            engineVersion: 2
+          ]
+          withVault([configuration: configuration, vaultSecrets: secrets]) {
+            // ในบล็อกนี้ $DB_PASSWORD คือ env var จริง (Jenkins จะ mask ค่าใน log ให้ ****)
+            sh 'echo "DB_PASSWORD ถูก inject แล้ว (ความยาว: ${#DB_PASSWORD})"'
+            // ตัวอย่างเอาไปใช้จริง เช่น: sh 'DB_PASSWORD=$DB_PASSWORD ./run-migration.sh'
+          }
+        }
       }
     }
   }
   post {
-    success { echo '✅ pipeline ผ่าน — trigger + build + OpenBao เดินได้' }
+    success { echo '✅ pipeline ผ่าน — secret inject จาก OpenBao เป็น env var สำเร็จ' }
   }
 }
