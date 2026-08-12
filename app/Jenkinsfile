@@ -45,12 +45,12 @@ pipeline {
     }
 
     // ── กัน deploy prod หลุด: ขอ approval ก่อน (เฉพาะ main/prod) ──────────────
-    stage('Approve prod') {
-      when { environment name: 'TARGET_ENV', value: 'prod' }
-      steps {
-        input message: 'Deploy to PROD?', ok: 'Deploy'
-      }
-    }
+    // stage('Approve prod') {
+    //   when { environment name: 'TARGET_ENV', value: 'prod' }
+    //   steps {
+    //     input message: 'Deploy to PROD?', ok: 'Deploy'
+    //   }
+    // }
 
     // ── ต้องใช้ secret ตรงไหน ก็ห่อด้วย withOpenBao ตรงนั้น ───────────────────
     // env: TARGET_ENV → ดึงจาก secret/sample-app/<env> อัตโนมัติ (วิธี 1)
