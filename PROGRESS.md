@@ -171,11 +171,49 @@ cd compose && docker compose up -d --build
 
 ---
 
+## 2026-08-12 (ปิดวัน) — pipeline เขียวครบ loop 🎉✅
+
+**Build → Test → Trivy → SonarQube → Deploy เดินครบ ผ่าน hard gate จริง**
+
+### เพิ่มช่วงบ่าย
+- `sample-app` เป็น **Vite + React จริง** (`npm ci && vite build`) → bake **Node 20** เข้า Jenkins image
+- **vitest + coverage**: 2 เทส `App.jsx` (100%) → ต่อ `lcov` เข้า Sonar (`sonar.javascript.lcov.reportPaths`),
+  กัน `main.jsx` ออกจาก coverage (`sonar.coverage.exclusions`)
+- ปรับ **Quality Gate ที่ Sonar UI** (สร้าง gate "soft coverage" → Set as Default) แทนการฝืนโค้ดให้ถึง 80%
+  → คง `gate: true` (hard) ไว้ แต่ **maintainer คุมเกณฑ์กลางที่ Sonar ที่เดียว** (ไม่ต้องแก้โค้ด)
+- `sonarScan` echo **ลิงก์คลิกได้** `http://localhost:19000/dashboard?id=<key>` (scanner log โชว์ `sonarqube:9000` ที่ host เปิดไม่ได้)
+- เอา `post{}` + `Approve prod` ออก, `TARGET_ENV='prod'` fixed hardcode
+
+### ⚙️ Infra fix สำคัญวันนี้
+- **Docker RAM 1.9GB → 8GB** ผ่าน `~/.wslconfig` (`[wsl2] memory=8GB`) — SonarQube (มี Elasticsearch) กินสเปกจน
+  เครื่องค้าง Jenkins แทบเข้าไม่ได้/restart เอง → apply ด้วย `wsl --shutdown` + เปิด Docker Desktop ใหม่
+- **port `50000→50001`** (WinNAT จอง 50000-50059 → `docker start jenkins` ค้างที่ `created`)
+- **Trivy pin `0.73.0`** (0.58.1 โหลดไม่ได้ 404 จาก get.trivy.dev)
+- ⚠️ อย่ายิง `docker start` ซ้อนกันหลายตัว → Docker Desktop start-path ค้าง ต้อง restart
+
+### 🧩 Pipeline ปัจจุบัน (`app/Jenkinsfile`)
+`Build (npm ci+build) → Test (vitest+coverage) → Trivy scan → SonarQube (hard gate) → Deploy (withOpenBao prod)`
+
+### 🔀 Design ที่ยึด (สรุปทั้งวัน)
+- template กลาง = **shared steps บางๆ ต่อ tool**: `withOpenBao`, `trivyScan`, `sonarScan` — consumer เขียน Jenkinsfile ปกติเอง
+- **แยก stage/step ต่อ tool** → fail แล้วรู้ทันทีว่าตัวไหนล่ม
+- ปลายทาง (vaultPath/env, quality gate, registry) **repo/maintainer คุมเอง** ผ่าน param/UI ไม่ lock-in
+- ลงทะเบียน library + config ทุกอย่าง **ที่ GUI** (ดู `docs/gui-setup.md`)
+
+### ⏭️ ค้าง/เลื่อนไว้ (คุยแล้ววันนี้)
+- **auto-seed OpenBao** — dev mode หายทุก restart, ยัง `bash seed-openbao.sh` เอง (เลื่อน)
+- **permission/user เข้า Jenkins+Sonar** — ตอนนี้ admin เดี่ยว → เฟส platform (แนะนำ SSO/OIDC)
+- **แยก token/policy ต่อ env** (ชั้น 2) — ยังใช้ root เดียว, hook `perEnvCred` เตรียมไว้
+
+---
+
 ## 🔜 ทำต่อ (ตามลำดับความสำคัญ)
 
-1. เพิ่ม stage **build image จริง** (`docker build` + push registry)
-3. เพิ่ม **ArgoCD** (ต้องมี k8s → k3d) เข้าสู่ deploy จริง
-4. เพิ่ม **security gate**: Trivy + SonarQube
+1. เพิ่ม stage **build image จริง** (`docker build` + push registry) + **Trivy image scan** (ตอนนี้แค่ fs)
+2. เพิ่ม **ArgoCD** (ต้องมี k8s → k3d) เข้าสู่ deploy จริง (`platform/` เตรียมไว้แล้ว — ต้องเติม `globalLibraries` ใน casc.yaml)
+3. **auto-seed OpenBao** (QoL) — service `openbao-seed` ใน compose
+4. **permission/SSO** เข้า Jenkins + Sonar (เฟส platform)
+5. **แยก token/policy ต่อ env** ใน OpenBao (ชั้น 2 ของการแยก env)
 
 ## ไฟล์อ้างอิง
 - `docs/gui-setup.md` — ⭐ คู่มือตั้งค่า GUI ครบทุก service (Jenkins + OpenBao + SonarQube) URL/creds/ทุกขั้นที่กดเอง
