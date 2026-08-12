@@ -31,16 +31,18 @@ pipeline {
     // ── stage ของ repo เอง เขียนตามภาษาของตัวเอง ─────────────────────────────
     stage('Build') {
       steps {
-        echo "🔨 building sample-app (env=${TARGET_ENV})..."
-        sh 'ls -la app/ || true'
-        // ตัวอย่างจริง: sh 'npm ci && npm run build'  หรือ  sh 'mvn -B package'
+        echo "🔨 building sample-app (Vite+React, env=${TARGET_ENV})..."
+        dir('app') {
+          sh 'npm ci'
+          sh 'npm run build'
+        }
       }
     }
 
     stage('Test') {
       steps {
         echo '🧪 running tests...'
-        // ตัวอย่างจริง: sh 'npm test'  หรือ  sh 'go test ./...'
+        // ยังไม่มี test — เพิ่ม vitest ทีหลัง: dir('app') { sh 'npm test' }
       }
     }
 
@@ -55,7 +57,7 @@ pipeline {
     // ── code quality/SAST: SonarQube (async) — analysis + quality gate ไม่ผ่าน = หยุด build ──
     stage('SonarQube') {
       steps {
-        sonarScan(projectKey: 'sample-app', sources: 'app')   // ดู vars/sonarScan.groovy
+        sonarScan(projectKey: 'sample-app', sources: 'app/src')   // เฉพาะ src เลี่ยง node_modules/dist
       }
     }
 

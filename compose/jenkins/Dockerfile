@@ -27,4 +27,10 @@ RUN curl -sfLo /tmp/sonar-scanner.zip \
 # SonarQube Scanner for Jenkins plugin (ให้มี step withSonarQubeEnv / waitForQualityGate)
 RUN jenkins-plugin-cli --plugins sonar
 
+# Node.js 20 (สำหรับ build Vite/React ของ sample-app: npm ci && npm run build)
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    && node -v && npm -v \
+    && rm -rf /var/lib/apt/lists/*
+
 USER jenkins
