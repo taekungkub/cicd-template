@@ -27,7 +27,7 @@
 
 def call(Map config = [:]) {
   String  projectKey     = config.projectKey ?: error('sonarScan: ต้องระบุ projectKey')
-  String  serverName     = config.server     ?: 'sonarqube'   // ชื่อ SonarQube server ที่ตั้งใน Jenkins
+  String  serverName     = config.server     ?: 'localhost'   // ชื่อ SonarQube server ที่ตั้งใน Jenkins
   String  sources        = config.sources    ?: '.'
   boolean gate           = (config.gate != false)             // default = hard gate (ไม่ผ่าน = หยุด)
   int     gateTimeoutMin = (config.gateTimeoutMinutes ?: 5) as int
