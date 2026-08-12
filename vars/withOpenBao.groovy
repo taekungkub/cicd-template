@@ -27,6 +27,24 @@
 //   - วิธี 3 (build ไหนยิง env ไหน): ให้ consumer ตัดสิน env เอง (branch-based/param)
 //                                    แล้วส่งค่าเข้ามาทาง `env:`
 //
+// ── repo custom ชี้เองได้ทุกอย่าง (default เป็นแค่ convention, override ได้หมด) ──
+//
+//   // 1) ยังไม่มี prod/staging → ไม่ต้องใส่ env → path = secret/<app>
+//   withOpenBao(app: 'my-app', secrets: [[envVar: 'TOKEN', vaultKey: 'token']]) { ... }
+//
+//   // 2) path แปลกๆ ไม่ตาม convention → ใส่ vaultPath ตรงๆ (ชนะ app/env ทั้งหมด)
+//   withOpenBao(app: 'legacy', vaultPath: 'secret/teamA/shared/config',
+//     secrets: [[envVar: 'DB_URL', vaultKey: 'db_url']]) { ... }
+//
+//   // 3) ชื่อ env อื่น (dev/qa/uat) → ส่ง string อะไรก็ได้ → secret/<app>/<env>
+//   withOpenBao(app: 'my-app', env: 'qa', secrets: [...]) { ... }
+//
+//   // 4) คนละ OpenBao/Vault ไปเลย (repo คนละทีม/คนละ cluster)
+//   withOpenBao(app: 'x', vaultUrl: 'http://vault.teamB:8200',
+//     vaultCred: 'teamB-token', vaultPath: 'kv/x', secrets: [...]) { ... }
+//
+// → template นี้บังคับแค่ "ดึงผ่าน withOpenBao" ทางเดียว; ปลายทางชี้ที่ไหน repo เจ้าของเลือกเอง
+//
 // ต้องมีใน Jenkins ก่อน:
 //   1) plugin "HashiCorp Vault"
 //   2) credential (default id = 'openbao-token', kind = Vault Token = "root")
