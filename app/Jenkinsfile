@@ -1,50 +1,58 @@
-// Jenkinsfile (MVP): GitHub push -> Jenkins build -> inject secret จาก OpenBao เป็น env var
-// ใช้ HashiCorp Vault plugin (OpenBao = Vault API) — token มาจาก Jenkins credential ไม่ hardcode
-//
-// ต้องมีก่อนรัน:
-//   1) ติดตั้ง plugin "HashiCorp Vault"
-//   2) เพิ่ม credential id = 'openbao-token' (Vault Token / Secret text = "root")
+// app/Jenkinsfile — consumer ตัวอย่าง
+// ─────────────────────────────────────────────────────────────────────────────
+// Jenkinsfile ปกติเต็มรูป — repo ปลายทาง "เป็นเจ้าของ" build/test/deploy เอง
+// (แต่ละ repo คนละภาษาได้ตามใจ) สิ่งเดียวที่ดึงจาก "template กลาง" คือ
+// step `withOpenBao {}` สำหรับดึง env/secret จาก OpenBao ที่ config เดียวกันทุก repo
+// ─────────────────────────────────────────────────────────────────────────────
+@Library('cicd-template@main') _
+
 pipeline {
   agent any
+
   triggers {
-    pollSCM('* * * * *')   // poll GitHub ทุก 1 นาที
+    pollSCM('* * * * *')   // poll SCM ทุก 1 นาที
   }
+
+  options {
+    timestamps()
+    disableConcurrentBuilds()
+  }
+
   stages {
-    stage('Checkout') {
-      steps { checkout scm }
-    }
+    // ── stage ของ repo เอง เขียนตามภาษาของตัวเอง ─────────────────────────────
     stage('Build') {
       steps {
-        echo '🔨 building sample app...'
-        sh 'ls -la app/'
+        echo '🔨 building sample-app...'
+        sh 'ls -la app/ || true'
+        // ตัวอย่างจริง: sh 'npm ci && npm run build'  หรือ  sh 'mvn -B package'
       }
     }
-    stage('Use secret from OpenBao') {
+
+    stage('Test') {
       steps {
-        script {
-          // ดึง secret จาก OpenBao มา map เป็น env var
-          def secrets = [[
-            path: 'secret/sample-app',        // KV v2 path (plugin เติม /data ให้เอง)
-            engineVersion: 2,
-            secretValues: [
-              [envVar: 'DB_PASSWORD', vaultKey: 'db_password']
-            ]
-          ]]
-          def configuration = [
-            vaultUrl: 'http://openbao:8200',  // service name ใน compose network
-            vaultCredentialId: 'openbao-token',
-            engineVersion: 2
-          ]
-          withVault([configuration: configuration, vaultSecrets: secrets]) {
-            // ในบล็อกนี้ $DB_PASSWORD คือ env var จริง (Jenkins จะ mask ค่าใน log ให้ ****)
-            sh 'echo "DB_PASSWORD ถูก inject แล้ว (ความยาว: ${#DB_PASSWORD})"'
-            // ตัวอย่างเอาไปใช้จริง เช่น: sh 'DB_PASSWORD=$DB_PASSWORD ./run-migration.sh'
-          }
+        echo '🧪 running tests...'
+        // ตัวอย่างจริง: sh 'npm test'  หรือ  sh 'go test ./...'
+      }
+    }
+
+    // ── ต้องใช้ secret ตรงไหน ก็ห่อด้วย withOpenBao ตรงนั้น ───────────────────
+    stage('Deploy') {
+      steps {
+        withOpenBao(app: 'sample-app', secrets: [
+          [envVar: 'DB_PASSWORD', vaultKey: 'db_password'],
+          [envVar: 'API_KEY',     vaultKey: 'api_key'],
+          [envVar: 'REDIS_URL',   vaultKey: 'redis_url'],
+        ]) {
+          // ในบล็อกนี้ $DB_PASSWORD / $API_KEY / $REDIS_URL ใช้ได้เลย (masked ใน log)
+          sh 'echo "DB_PASSWORD length = ${#DB_PASSWORD}"'
+          // ตัวอย่างจริง: sh './deploy.sh'
         }
       }
     }
   }
+
   post {
-    success { echo '✅ pipeline ผ่าน — secret inject จาก OpenBao เป็น env var สำเร็จ' }
+    success { echo '✅ sample-app: pipeline ผ่าน — secret inject จาก OpenBao สำเร็จ' }
+    failure { echo '❌ sample-app: pipeline ล้มเหลว' }
   }
 }

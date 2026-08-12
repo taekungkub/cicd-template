@@ -1,0 +1,60 @@
+// vars/withOpenBao.groovy
+// ─────────────────────────────────────────────────────────────────────────────
+// "template กลาง" — ส่วนเดียวที่แชร์ร่วมกันทุก repo คือ "การดึง env จาก OpenBao"
+//
+// แต่ละ repo เขียน Jenkinsfile ของตัวเองตามปกติ (build/test/deploy คนละภาษาได้)
+// แล้วห่อเฉพาะ "ช่วงที่ต้องใช้ secret" ด้วย step นี้:
+//
+//   @Library('cicd-template@main') _
+//
+//   pipeline {
+//     agent any
+//     stages {
+//       stage('Deploy') {
+//         steps {
+//           withOpenBao(app: 'my-service', secrets: [
+//             [envVar: 'DB_PASSWORD', vaultKey: 'db_password'],
+//           ]) {
+//             sh './deploy.sh'          // ในบล็อกนี้มี $DB_PASSWORD ใช้ได้เลย
+//           }
+//         }
+//       }
+//     }
+//   }
+//
+// ต้องมีใน Jenkins ก่อน:
+//   1) plugin "HashiCorp Vault"
+//   2) credential (default id = 'openbao-token', kind = Vault Token = "root")
+//   3) Global Pipeline Library ชื่อ 'cicd-template' ชี้มาที่ repo นี้
+// ─────────────────────────────────────────────────────────────────────────────
+
+def call(Map config = [:], Closure body) {
+
+  // ---- ค่า default + validation (ซ่อน config OpenBao ไว้ที่เดียว) -----------
+  String app       = config.app       ?: error('withOpenBao: ต้องระบุ app')
+  String vaultPath = config.vaultPath ?: "secret/${app}"
+  String vaultUrl  = config.vaultUrl  ?: 'http://openbao:8200'   // service name ใน compose network
+  String vaultCred = config.vaultCred ?: 'openbao-token'
+  int    engineVer = (config.engineVersion ?: 2) as int
+
+  // secret mapping: [[envVar: 'DB_PASSWORD', vaultKey: 'db_password'], ...]
+  List secrets = config.secrets ?: [[envVar: 'DB_PASSWORD', vaultKey: 'db_password']]
+
+  def vaultSecrets = [[
+    path:          vaultPath,     // KV v2 path (plugin เติม /data ให้เอง)
+    engineVersion: engineVer,
+    secretValues:  secrets,
+  ]]
+  def configuration = [
+    vaultUrl:          vaultUrl,
+    vaultCredentialId: vaultCred,
+    engineVersion:     engineVer,
+  ]
+
+  withVault([configuration: configuration, vaultSecrets: vaultSecrets]) {
+    // ในบล็อกนี้ secret ถูก inject เป็น env var แล้ว (Jenkins mask ให้ ****)
+    def names = secrets.collect { it.envVar }.join(', ')
+    echo "🔐 injected secrets: ${names} (จาก ${vaultPath})"
+    body()
+  }
+}
