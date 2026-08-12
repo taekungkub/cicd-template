@@ -12,7 +12,7 @@
 //     stages {
 //       stage('Deploy') {
 //         steps {
-//           withOpenBao(app: 'my-service', secrets: [
+//           withOpenBao(app: 'my-service', env: 'prod', secrets: [
 //             [envVar: 'DB_PASSWORD', vaultKey: 'db_password'],
 //           ]) {
 //             sh './deploy.sh'          // ในบล็อกนี้มี $DB_PASSWORD ใช้ได้เลย
@@ -21,6 +21,11 @@
 //       }
 //     }
 //   }
+//
+// การแยก staging/prod (ดู PROGRESS.md):
+//   - วิธี 1 (แยก path): ใส่ `env` → path กลายเป็น secret/<app>/<env> อัตโนมัติ
+//   - วิธี 3 (build ไหนยิง env ไหน): ให้ consumer ตัดสิน env เอง (branch-based/param)
+//                                    แล้วส่งค่าเข้ามาทาง `env:`
 //
 // ต้องมีใน Jenkins ก่อน:
 //   1) plugin "HashiCorp Vault"
@@ -32,9 +37,16 @@ def call(Map config = [:], Closure body) {
 
   // ---- ค่า default + validation (ซ่อน config OpenBao ไว้ที่เดียว) -----------
   String app       = config.app       ?: error('withOpenBao: ต้องระบุ app')
-  String vaultPath = config.vaultPath ?: "secret/${app}"
+  String env       = config.env ?: config.environment ?: ''   // 'staging' | 'prod' | '' (ไม่แยก)
+
+  // วิธี 1 — แยก secret ตาม env: secret/<app>/<env>  (ถ้าไม่ใส่ env → secret/<app> เหมือนเดิม)
+  String vaultPath = config.vaultPath ?: (env ? "secret/${app}/${env}" : "secret/${app}")
   String vaultUrl  = config.vaultUrl  ?: 'http://openbao:8200'   // service name ใน compose network
-  String vaultCred = config.vaultCred ?: 'openbao-token'
+
+  // วิธี 2 (แยกสิทธิ์) — ถ้าจะแยก token/policy ต่อ env ในอนาคต ให้ตั้ง credential ชื่อ
+  // 'openbao-token-<env>' ใน Jenkins แล้วส่ง perEnvCred: true (ตอนนี้ default ใช้ token เดียว)
+  String vaultCred = config.vaultCred ?:
+      ((config.perEnvCred && env) ? "openbao-token-${env}" : 'openbao-token')
   int    engineVer = (config.engineVersion ?: 2) as int
 
   // secret mapping: [[envVar: 'DB_PASSWORD', vaultKey: 'db_password'], ...]
@@ -54,7 +66,7 @@ def call(Map config = [:], Closure body) {
   withVault([configuration: configuration, vaultSecrets: vaultSecrets]) {
     // ในบล็อกนี้ secret ถูก inject เป็น env var แล้ว (Jenkins mask ให้ ****)
     def names = secrets.collect { it.envVar }.join(', ')
-    echo "🔐 injected secrets: ${names} (จาก ${vaultPath})"
+    echo "🔐 [${env ?: 'default'}] injected: ${names} (จาก ${vaultPath})"
     body()
   }
 }

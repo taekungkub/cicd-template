@@ -98,6 +98,27 @@ pipeline {
 
 ---
 
+## 2026-08-12 — แยก env staging/prod ✅
+
+### แนวคิด 3 ชั้น (อย่าปน)
+1. **แยก path ที่ OpenBao** (data) — `secret/<app>/<env>` ← ทำแล้ว (ฐาน ต้องมีเสมอ)
+2. **แยกสิทธิ์ token/policy** ต่อ env — ยังไม่ทำ (ตอนนี้ยังใช้ token `root` เดียว); เตรียม hook ไว้แล้ว
+   ผ่าน `perEnvCred: true` → จะไปหา credential `openbao-token-<env>`
+3. **build ไหนยิง env ไหน** (routing) — เลือก **branch-based**: `main`→prod, branch อื่น→staging
+
+### สิ่งที่ทำ
+- `vars/withOpenBao.groovy` รับ param `env` → derive `vaultPath = secret/<app>/<env>` อัตโนมัติ
+  (ไม่ใส่ env ก็ยัง fallback เป็น `secret/<app>` เหมือนเดิม)
+- `app/Jenkinsfile`: คำนวณ `TARGET_ENV` จาก `env.BRANCH_NAME` + เพิ่ม stage `Approve prod`
+  (`input`) กัน deploy prod หลุด + ส่ง `env: TARGET_ENV` เข้า `withOpenBao`
+- `compose/seed-openbao.sh`: seed 2 path — `secret/sample-app/staging` และ `secret/sample-app/prod`
+
+### ⚠️ ต้อง re-seed หลัง pull (dev mode เก็บใน memory): `bash compose/seed-openbao.sh`
+### ⏭️ ค้าง: push → build. หมายเหตุ job ปัจจุบัน poll `main` เดียว → จะได้ env=prod เสมอ
+###        (จะเห็น input approval). อยากเทส staging ต้องมี branch อื่น หรือทำ multibranch job
+
+---
+
 ## 🔜 ทำต่อ (ตามลำดับความสำคัญ)
 
 1. เพิ่ม stage **build image จริง** (`docker build` + push registry)

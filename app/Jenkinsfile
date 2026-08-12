@@ -3,6 +3,10 @@
 // Jenkinsfile ปกติเต็มรูป — repo ปลายทาง "เป็นเจ้าของ" build/test/deploy เอง
 // (แต่ละ repo คนละภาษาได้ตามใจ) สิ่งเดียวที่ดึงจาก "template กลาง" คือ
 // step `withOpenBao {}` สำหรับดึง env/secret จาก OpenBao ที่ config เดียวกันทุก repo
+//
+// การแยก env (staging/prod):
+//   วิธี 1 — secret แยก path ที่ OpenBao: secret/sample-app/staging | secret/sample-app/prod
+//   วิธี 3 — branch-based: main → prod, branch อื่น → staging  (คำนวณที่ TARGET_ENV ด้านล่าง)
 // ─────────────────────────────────────────────────────────────────────────────
 @Library('cicd-template@main') _
 
@@ -18,11 +22,16 @@ pipeline {
     disableConcurrentBuilds()
   }
 
+  environment {
+    // วิธี 3 — เลือก env จาก branch: main = prod, ที่เหลือ = staging
+    TARGET_ENV = "${env.BRANCH_NAME == 'main' ? 'prod' : 'staging'}"
+  }
+
   stages {
     // ── stage ของ repo เอง เขียนตามภาษาของตัวเอง ─────────────────────────────
     stage('Build') {
       steps {
-        echo '🔨 building sample-app...'
+        echo "🔨 building sample-app (env=${TARGET_ENV})..."
         sh 'ls -la app/ || true'
         // ตัวอย่างจริง: sh 'npm ci && npm run build'  หรือ  sh 'mvn -B package'
       }
@@ -35,16 +44,25 @@ pipeline {
       }
     }
 
+    // ── กัน deploy prod หลุด: ขอ approval ก่อน (เฉพาะ main/prod) ──────────────
+    stage('Approve prod') {
+      when { environment name: 'TARGET_ENV', value: 'prod' }
+      steps {
+        input message: 'Deploy to PROD?', ok: 'Deploy'
+      }
+    }
+
     // ── ต้องใช้ secret ตรงไหน ก็ห่อด้วย withOpenBao ตรงนั้น ───────────────────
+    // env: TARGET_ENV → ดึงจาก secret/sample-app/<env> อัตโนมัติ (วิธี 1)
     stage('Deploy') {
       steps {
-        withOpenBao(app: 'sample-app', secrets: [
+        withOpenBao(app: 'sample-app', env: TARGET_ENV, secrets: [
           [envVar: 'DB_PASSWORD', vaultKey: 'db_password'],
           [envVar: 'API_KEY',     vaultKey: 'api_key'],
           [envVar: 'REDIS_URL',   vaultKey: 'redis_url'],
         ]) {
           // ในบล็อกนี้ $DB_PASSWORD / $API_KEY / $REDIS_URL ใช้ได้เลย (masked ใน log)
-          sh 'echo "DB_PASSWORD length = ${#DB_PASSWORD}"'
+          sh 'echo "deploying to ${TARGET_ENV} — DB_PASSWORD length = ${#DB_PASSWORD}"'
           // ตัวอย่างจริง: sh './deploy.sh'
         }
       }
@@ -52,7 +70,7 @@ pipeline {
   }
 
   post {
-    success { echo '✅ sample-app: pipeline ผ่าน — secret inject จาก OpenBao สำเร็จ' }
-    failure { echo '❌ sample-app: pipeline ล้มเหลว' }
+    success { echo "✅ sample-app [${TARGET_ENV}]: pipeline ผ่าน — secret inject จาก OpenBao สำเร็จ" }
+    failure { echo "❌ sample-app [${TARGET_ENV}]: pipeline ล้มเหลว" }
   }
 }
