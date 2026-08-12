@@ -32,6 +32,7 @@ def call(Map config = [:]) {
   boolean gate           = (config.gate != false)             // default = hard gate (ไม่ผ่าน = หยุด)
   int     gateTimeoutMin = (config.gateTimeoutMinutes ?: 5) as int
   String  extraArgs      = config.extraArgs  ?: ''
+  String  uiUrl          = config.uiUrl      ?: 'http://localhost:19000'  // URL ฝั่ง browser (host) สำหรับลิงก์คลิก
 
   // 1) analysis — อัปโหลดผลขึ้น SonarQube (withSonarQubeEnv ฉีด SONAR_HOST_URL + token ให้)
   echo "🔎 SonarQube analysis: ${projectKey} (sources=${sources})"
@@ -43,6 +44,9 @@ def call(Map config = [:]) {
         ${extraArgs}
     """
   }
+
+  // ลิงก์คลิกได้ฝั่ง browser (log ของ scanner โชว์ sonarqube:9000 ซึ่ง host เปิดไม่ได้)
+  echo "📊 ดูผลบน browser: ${uiUrl}/dashboard?id=${projectKey}"
 
   // 2) quality gate — รอ server คำนวณเสร็จ (ผ่าน webhook); ไม่ผ่าน = abort build
   if (gate) {
