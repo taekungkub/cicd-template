@@ -1,22 +1,24 @@
-// vars/securityScan.groovy
+// vars/trivyScan.groovy
 // ─────────────────────────────────────────────────────────────────────────────
-// "template กลาง" — shared security gate ด้วย Trivy (แนวเดียวกับ withOpenBao)
+// "template กลาง" — security gate ด้วย Trivy (SCA + secret detection)
+// แยกเป็น step เฉพาะ tool → เวลา fail รู้ทันทีว่าล่มเพราะ Trivy (ไม่ปนกับ sonarScan)
 //
 // สแกน filesystem ของ repo: หา vuln ใน dependency + secret ที่เผลอ commit
 // language-agnostic → ใช้ได้ทุก repo ไม่ว่าเขียนภาษาอะไร
 //
 //   @Library('cicd-template@main') _
 //
-//   stage('Security scan') {
-//     steps { securityScan() }                     // default: fail เมื่อเจอ HIGH,CRITICAL
+//   stage('Trivy scan') {
+//     steps { trivyScan() }                        // default: fail เมื่อเจอ HIGH,CRITICAL
 //   }
 //
 // override ได้:
-//   securityScan(severity: 'CRITICAL')             // เข้มเฉพาะ CRITICAL
-//   securityScan(exitCode: 0)                       // report อย่างเดียว ไม่ fail build
-//   securityScan(path: 'app', secrets: false)       // สแกนแค่โฟลเดอร์ app, ปิด secret scan
+//   trivyScan(severity: 'CRITICAL')                // เข้มเฉพาะ CRITICAL
+//   trivyScan(exitCode: 0)                          // report อย่างเดียว ไม่ fail build
+//   trivyScan(path: 'app', secrets: false)          // สแกนแค่โฟลเดอร์ app, ปิด secret scan
 //
 // ต้องมีใน Jenkins agent: trivy CLI (bake ไว้ใน compose/jenkins/Dockerfile แล้ว)
+// ── ทีหลังจะมี sonarScan() แยกต่างหากสำหรับ code quality/SAST (คนละ tool คนละ stage) ──
 // ─────────────────────────────────────────────────────────────────────────────
 
 def call(Map config = [:]) {

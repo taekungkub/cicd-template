@@ -45,9 +45,10 @@ pipeline {
     }
 
     // ── security gate: Trivy สแกน vuln+secret ก่อน deploy (เจอ HIGH/CRITICAL → fail) ──
-    stage('Security scan') {
+    // แยก stage ต่อ tool → fail แล้วรู้ทันทีว่าตัวไหนล่ม (ทีหลังเพิ่ม stage 'SonarQube' แยก)
+    stage('Trivy scan') {
       steps {
-        securityScan()   // จาก template กลาง — ปรับ severity/exitCode ได้ ดู vars/securityScan.groovy
+        trivyScan()   // จาก template กลาง — ปรับ severity/exitCode ได้ ดู vars/trivyScan.groovy
       }
     }
 

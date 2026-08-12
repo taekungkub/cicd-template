@@ -124,9 +124,10 @@ pipeline {
 ### สิ่งที่ทำ
 - **custom Jenkins image**: `compose/jenkins/Dockerfile` = `jenkins/jenkins:lts-jdk17` + Trivy CLI
   (pin `TRIVY_VERSION=0.58.1`) → `docker-compose.yml` เปลี่ยน jenkins เป็น `build: ./jenkins`
-- **shared step** `vars/securityScan.groovy` — `trivy fs` สแกน vuln+secret, gate `HIGH,CRITICAL`
+- **shared step** `vars/trivyScan.groovy` — `trivy fs` สแกน vuln+secret, gate `HIGH,CRITICAL`
   override ได้: `severity`, `exitCode` (0=report เฉยๆ), `path`, `secrets`
-- `app/Jenkinsfile`: เพิ่ม stage `Security scan` (เรียก `securityScan()`) คั่นก่อน Deploy
+- `app/Jenkinsfile`: เพิ่ม stage `Trivy scan` (เรียก `trivyScan()`) คั่นก่อน Deploy
+  → แยก step/stage ต่อ tool (Trivy แยกจาก SonarQube ทีหลัง) เวลา fail รู้ทันทีว่าตัวไหนล่ม
 
 ### ⚠️ ต้อง rebuild image ก่อนใช้ (image เดิมไม่มี trivy):
 ```bash
