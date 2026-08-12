@@ -32,7 +32,7 @@ services:
       JENKINS_OPTS: "--prefix=/"
     ports:
       - "9090:8080"      # UI:  http://localhost:9090  [host 8081 ถูก Windows จอง]
-      - "50000:50000"    # agent
+      - "50001:50000"    # agent (host 50000 ถูก WinNAT จอง 50000-50059 → remap 50001)
     volumes:
       - jenkins_home:/var/jenkins_home
       - /var/run/docker.sock:/var/run/docker.sock   # เผื่อ build image ผ่าน host docker
