@@ -24,7 +24,8 @@ services:
   # ---- Jenkins : CI (trigger + build) ----
   # mount docker socket ไว้เผื่ออยาก build image ทีหลัง (ตอนนี้ยังไม่ต้อง)
   jenkins:
-    image: jenkins/jenkins:lts-jdk17
+    build: ./jenkins          # jenkins/jenkins:lts-jdk17 + Trivy CLI (ดู jenkins/Dockerfile)
+    image: cicd-template-jenkins:lts-jdk17
     container_name: jenkins
     user: root                                  # ให้เข้าถึง docker socket ได้
     environment:

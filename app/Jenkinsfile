@@ -44,6 +44,13 @@ pipeline {
       }
     }
 
+    // ── security gate: Trivy สแกน vuln+secret ก่อน deploy (เจอ HIGH/CRITICAL → fail) ──
+    stage('Security scan') {
+      steps {
+        securityScan()   // จาก template กลาง — ปรับ severity/exitCode ได้ ดู vars/securityScan.groovy
+      }
+    }
+
     // ── กัน deploy prod หลุด: ขอ approval ก่อน (เฉพาะ main/prod) ──────────────
     // stage('Approve prod') {
     //   when { environment name: 'TARGET_ENV', value: 'prod' }

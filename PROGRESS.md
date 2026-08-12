@@ -119,6 +119,24 @@ pipeline {
 
 ---
 
+## 2026-08-12 — Security gate (Trivy) ✅ ทำก่อน ArgoCD
+
+### สิ่งที่ทำ
+- **custom Jenkins image**: `compose/jenkins/Dockerfile` = `jenkins/jenkins:lts-jdk17` + Trivy CLI
+  (pin `TRIVY_VERSION=0.58.1`) → `docker-compose.yml` เปลี่ยน jenkins เป็น `build: ./jenkins`
+- **shared step** `vars/securityScan.groovy` — `trivy fs` สแกน vuln+secret, gate `HIGH,CRITICAL`
+  override ได้: `severity`, `exitCode` (0=report เฉยๆ), `path`, `secrets`
+- `app/Jenkinsfile`: เพิ่ม stage `Security scan` (เรียก `securityScan()`) คั่นก่อน Deploy
+
+### ⚠️ ต้อง rebuild image ก่อนใช้ (image เดิมไม่มี trivy):
+```bash
+cd compose && docker compose up -d --build
+```
+### ⏭️ ค้าง: push → build. ถ้า trivy เจอ vuln HIGH/CRITICAL ใน dependency จะ fail (ปรับ severity ได้)
+### 🔜 SonarQube (code quality/SAST) — เฟสถัดไป ต้องเพิ่ม service+DB ใน compose
+
+---
+
 ## 🔜 ทำต่อ (ตามลำดับความสำคัญ)
 
 1. เพิ่ม stage **build image จริง** (`docker build` + push registry)
