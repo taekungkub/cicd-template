@@ -31,13 +31,14 @@ services:
     environment:
       JENKINS_OPTS: "--prefix=/"
     ports:
-      - "9090:8080"      # UI:  http://localhost:9090  [host 8081 ถูก Windows จอง]
+      - "9090:8080"      # UI:  http://localhost:9090 
       - "50001:50000"    # agent (host 50000 ถูก WinNAT จอง 50000-50059 → remap 50001)
     volumes:
       - jenkins_home:/var/jenkins_home
       - /var/run/docker.sock:/var/run/docker.sock   # เผื่อ build image ผ่าน host docker
-      # init script: ลงทะเบียน Global Pipeline Library 'cicd-template' อัตโนมัติตอน startup
-      - ./jenkins-init:/var/jenkins_home/init.groovy.d:ro
+      # Global Pipeline Library 'cicd-template' ลงทะเบียนเองที่ GUI:
+      #   Manage Jenkins → System → Global Pipeline Libraries → Add
+      #   Name=cicd-template, Default version=main, Modern SCM → Git → repo URL
     restart: unless-stopped
 
 volumes:

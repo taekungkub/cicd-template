@@ -138,6 +138,17 @@ cd compose && docker compose up -d --build
 
 ---
 
+## 2026-08-12 — เลิกใช้ init script, ลงทะเบียน Shared Library ที่ GUI แทน ✅
+
+### เหตุผล: GUI ง่ายกว่า ไม่ซับซ้อน (init.groovy.d ต้องเขียน groovy + mount)
+- **ลบ** `compose/jenkins-init/configure-shared-library.groovy` + เอา mount `init.groovy.d` ออกจาก compose
+- ตอนนี้ลงทะเบียน library เองที่ **Manage Jenkins → System → Global Pipeline Libraries → Add**
+  `Name=cicd-template`, `Default version=main`, Modern SCM → Git → repo URL
+- ⚠️ library ที่ลงไว้แล้วอยู่ใน volume `jenkins_home` (ไม่หายตอน restart) — **หายเฉพาะถ้า `down -v`**
+  ถ้า down -v แล้วต้องไปกรอกใหม่ที่ GUI (ไม่มี auto แล้ว)
+
+---
+
 ## 🔜 ทำต่อ (ตามลำดับความสำคัญ)
 
 1. เพิ่ม stage **build image จริง** (`docker build` + push registry)
