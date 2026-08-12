@@ -41,8 +41,8 @@ pipeline {
 
     stage('Test') {
       steps {
-        echo '🧪 running tests...'
-        // ยังไม่มี test — เพิ่ม vitest ทีหลัง: dir('app') { sh 'npm test' }
+        echo '🧪 running tests + coverage...'
+        dir('app') { sh 'npm run test:coverage' }   // สร้าง coverage/lcov.info ให้ Sonar อ่าน
       }
     }
 
@@ -54,11 +54,15 @@ pipeline {
       }
     }
 
-    // ── code quality/SAST: SonarQube (soft gate) — สแกนโชว์ผลใน Sonar แต่ไม่บล็อก build ──
+    // ── code quality/SAST: SonarQube (hard gate) — ไม่ผ่าน quality gate = หยุด build ──
+    // รันใน app/ เพื่อให้ path ใน lcov (src/...) ตรงกับ sources → coverage แมปถูก
     stage('SonarQube') {
       steps {
-        // gate:false = ไม่ waitForQualityGate (เอาออกเมื่อพร้อมบังคับ hard gate)
-        sonarScan(projectKey: 'sample-app', sources: 'app/src', gate: false)
+        dir('app') {
+          sonarScan(projectKey: 'sample-app', sources: 'src', gate: true,
+                    extraArgs: '-Dsonar.javascript.lcov.reportPaths=coverage/lcov.info ' +
+                               '-Dsonar.coverage.exclusions=src/main.jsx')   // ไม่นับ bootstrap ใน coverage
+        }
       }
     }
 
