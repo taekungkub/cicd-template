@@ -178,6 +178,7 @@ cd compose && docker compose up -d --build
 4. เพิ่ม **security gate**: Trivy + SonarQube
 
 ## ไฟล์อ้างอิง
+- `docs/gui-setup.md` — ⭐ คู่มือตั้งค่า GUI ครบทุก service (Jenkins + OpenBao + SonarQube) URL/creds/ทุกขั้นที่กดเอง
 - `docs/design-spec.md` — vision เต็ม 13 tools
 - `docs/mvp-spec.md` — spec ของ MVP
 - `BOOTSTRAP.md` — คำสั่ง deploy บน k8s (เฟส ArgoCD)
