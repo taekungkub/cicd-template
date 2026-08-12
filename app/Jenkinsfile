@@ -52,6 +52,13 @@ pipeline {
       }
     }
 
+    // ── code quality/SAST: SonarQube (async) — analysis + quality gate ไม่ผ่าน = หยุด build ──
+    stage('SonarQube') {
+      steps {
+        sonarScan(projectKey: 'sample-app', sources: 'app')   // ดู vars/sonarScan.groovy
+      }
+    }
+
     // ── กัน deploy prod หลุด: ขอ approval ก่อน (เฉพาะ main/prod) ──────────────
     // stage('Approve prod') {
     //   when { environment name: 'TARGET_ENV', value: 'prod' }

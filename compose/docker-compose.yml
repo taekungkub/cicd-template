@@ -18,7 +18,7 @@ services:
       BAO_ADDR: http://0.0.0.0:8200
     cap_add: [IPC_LOCK]
     ports:
-      - "18200:8200"     # UI/API:  http://localhost:18200  (token: root)  [host 8200 ถูก Windows จอง]
+      - "18200:8200"  # UI/API:  http://localhost:18200  (token: root)
     restart: unless-stopped
 
   # ---- Jenkins : CI (trigger + build) ----
@@ -32,7 +32,7 @@ services:
       JENKINS_OPTS: "--prefix=/"
     ports:
       - "9090:8080"      # UI:  http://localhost:9090 
-      - "50001:50000"    # agent (host 50000 ถูก WinNAT จอง 50000-50059 → remap 50001)
+      - "50001:50000"    # agent 
     volumes:
       - jenkins_home:/var/jenkins_home
       - /var/run/docker.sock:/var/run/docker.sock   # เผื่อ build image ผ่าน host docker
@@ -41,5 +41,22 @@ services:
       #   Name=cicd-template, Default version=main, Modern SCM → Git → repo URL
     restart: unless-stopped
 
+  # ---- SonarQube : code quality / SAST (H2 ในตัว — eval only, พอสำหรับ local demo) ----
+  sonarqube:
+    image: sonarqube:lts-community
+    container_name: sonarqube
+    environment:
+      SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: "true"   # ให้ start ได้บน Docker Desktop โดยไม่ต้องแก้ vm.max_map_count
+    ports:
+      - "19000:9000"     # UI:  http://localhost:19000  (host 9000 กันชน/WinNAT)
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_extensions:/opt/sonarqube/extensions
+      - sonarqube_logs:/opt/sonarqube/logs
+    restart: unless-stopped
+
 volumes:
   jenkins_home:
+  sonarqube_data:
+  sonarqube_extensions:
+  sonarqube_logs:
