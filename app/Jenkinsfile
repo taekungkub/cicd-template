@@ -23,8 +23,8 @@ pipeline {
   }
 
   environment {
-    // วิธี 3 — เลือก env จาก branch: main = prod, ที่เหลือ = staging
-    TARGET_ENV = "${env.BRANCH_NAME == 'main' ? 'prod' : 'staging'}"
+    // fixed env — repo นี้ยิง prod อย่างเดียว (ถ้าจะทำ branch-based: env.BRANCH_NAME == 'main' ? 'prod' : 'staging')
+    TARGET_ENV = 'prod'
   }
 
   stages {
