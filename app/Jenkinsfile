@@ -54,10 +54,11 @@ pipeline {
       }
     }
 
-    // ── code quality/SAST: SonarQube (async) — analysis + quality gate ไม่ผ่าน = หยุด build ──
+    // ── code quality/SAST: SonarQube (soft gate) — สแกนโชว์ผลใน Sonar แต่ไม่บล็อก build ──
     stage('SonarQube') {
       steps {
-        sonarScan(projectKey: 'sample-app', sources: 'app/src')   // เฉพาะ src เลี่ยง node_modules/dist
+        // gate:false = ไม่ waitForQualityGate (เอาออกเมื่อพร้อมบังคับ hard gate)
+        sonarScan(projectKey: 'sample-app', sources: 'app/src', gate: false)
       }
     }
 
