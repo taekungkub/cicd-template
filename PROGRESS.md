@@ -149,6 +149,28 @@ cd compose && docker compose up -d --build
 
 ---
 
+## 2026-08-12 — SonarQube hard gate ✅ (code เสร็จ, เหลือกดตั้งค่า UI)
+
+### สิ่งที่ทำ (auto แล้ว)
+- compose: เพิ่ม service `sonarqube` (lts-community, H2 ในตัว, ปิด ES bootstrap check) UI = http://localhost:19000
+- `jenkins/Dockerfile`: bake SonarScanner CLI 6.2.1.4610 + ลง plugin `sonar` (มี withSonarQubeEnv/waitForQualityGate)
+- `vars/sonarScan.groovy`: analysis (async upload) → `waitForQualityGate abortPipeline:true` (ไม่ผ่าน=หยุด)
+- `app/Jenkinsfile`: เพิ่ม stage `SonarQube` (แยกจาก `Trivy scan` → fail แล้วรู้ว่าตัวไหน)
+- verify แล้ว: scanner+plugin อยู่ใน jenkins, SonarQube UP v9.9.8
+
+### ⏭️ ต้องกดใน UI เอง (ครั้งเดียว) ให้ hard gate ทำงาน
+1. **SonarQube** http://localhost:19000 login `admin`/`admin` → เปลี่ยนรหัส
+2. **สร้าง token**: My Account → Security → Generate token → copy
+3. **Jenkins credential**: เพิ่ม Secret text = token นั้น (เช่น id `sonarqube-token`)
+4. **ผูก server**: Manage Jenkins → System → SonarQube servers → Add
+   Name=`sonarqube`, URL=`http://sonarqube:9000`, Server auth token = credential ข้างบน
+   (☑ Environment variables / enable injecting)
+5. **webhook**: SonarQube → Administration → Configuration → Webhooks → Create
+   URL=`http://jenkins:8080/sonarqube-webhook/`  ← ตัวปลุก waitForQualityGate
+> ⚠️ Name ใน step 4 ต้องตรงกับ `server:'sonarqube'` ใน sonarScan(); URL ใช้ชื่อ service ใน compose network ไม่ใช่ localhost
+
+---
+
 ## 🔜 ทำต่อ (ตามลำดับความสำคัญ)
 
 1. เพิ่ม stage **build image จริง** (`docker build` + push registry)
