@@ -215,6 +215,26 @@ cd compose && docker compose up -d --build
 4. **permission/SSO** เข้า Jenkins + Sonar (เฟส platform)
 5. **แยก token/policy ต่อ env** ใน OpenBao (ชั้น 2 ของการแยก env)
 
+## 📝 โน้ตดีไซน์เฟส 2 (คุยไว้ 2026-08-12 — ยังไม่ลงมือ)
+
+### Config: secret vs non-secret (OpenBao ไม่ซ้ำกับ .env)
+- **secret** (password/key/token) → **OpenBao** ต่อ env (มีแล้ว) — ห้ามอยู่ใน .env/git
+- **non-secret** (API URL/flag/log level) → `.env`/ConfigMap ได้ (ไม่ลับ) หรือยัดเข้า OpenBao ต่อ env ด้วย → **เลิกใช้ .env เหลือ source เดียว**
+- ⚠️ Vite `VITE_*` = **build-time** (bake ตอน build) → staging/prod ต่างค่า ต้อง build ต่อ env (`.env.<mode>`) หรือ runtime config; secret ห้ามอยู่ใน frontend
+
+### Rollback = ฝั่ง CD ไม่ใช่ Jenkins
+- GitOps: **rollback = `git revert` image tag ใน gitops → ArgoCD sync ตัวเก่า** (path เดียวกับ deploy)
+- ArgoCD UI rollback = ฉุกเฉิน แต่ Git ยังชี้ใหม่ → `selfHeal` ตีกลับ ต้องแก้ Git ตาม
+- เงื่อนไข: **tag image = commit SHA ไม่ใช่ `latest`**; OpenBao KV v2 เก็บ version secret → ย้อน secret แยกได้
+
+### ArgoCD = platform ตัวเดียว (shared) เสิร์ฟทุก repo
+- ArgoCD ติดตั้งครั้งเดียว (เหมือน Jenkins) — ไม่ใช่ต่อ repo
+- cicd-template = (1) ที่อยู่ตัวตั้ง ArgoCD (`platform/argocd/`) + (2) ให้ **base chart/app-of-apps/Application template** ที่ consumer อ้าง
+- consumer repo = มี **`Application` CR + manifest ของตัวเอง** (อ้าง chart กลาง) — sample-app ในรีโปนี้ = demo ฝั่ง CD
+- symmetry: CI(Jenkins+shared library+Jenkinsfile) ↔ CD(ArgoCD+base chart+Application)
+
+---
+
 ## ไฟล์อ้างอิง
 - `docs/gui-setup.md` — ⭐ คู่มือตั้งค่า GUI ครบทุก service (Jenkins + OpenBao + SonarQube) URL/creds/ทุกขั้นที่กดเอง
 - `docs/design-spec.md` — vision เต็ม 13 tools
