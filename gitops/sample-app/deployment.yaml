@@ -16,6 +16,5 @@ spec:
           image: nginx:1.27-alpine    # <-- บรรทัดนี้ถูก bump-image.sh แก้อัตโนมัติตอน CI
           ports:
             - containerPort: 80
-          envFrom:
-            - secretRef:
-                name: sample-app-secrets   # secret ที่ ESO ดึงมาจาก OpenBao
+          # envFrom (secretRef: sample-app-secrets) ถูกปิดชั่วคราว — ทดสอบ ArgoCD sync
+          # เฉยๆ โดยยังไม่มี OpenBao/ESO; เปิดกลับตอนต่อ secret stack จริง
