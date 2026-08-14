@@ -218,6 +218,7 @@ ArgoCD รันอยู่ใน cluster แต่ **ไม่มีที่�
 |---|---|
 | `platform/argocd/install.sh` | apply manifest `v3.5.1` (`--server-side`) → `server.insecure=true` → patch svc NodePort → รอ ready → apply `apps/` ทั้งโฟลเดอร์ |
 | `platform/argocd/open.sh` | เปิด port-forward **background** + echo URL/user/password (`--stop` เพื่อปิด) |
+| `platform/argocd/apply-apps.sh` | ลงทะเบียน Application ใน `apps/` อย่างเดียว — ไม่แตะ/ไม่ restart ArgoCD |
 | `platform/argocd/reset-password.sh` | รีเซ็ตรหัส admin เมื่อ login ไม่ผ่าน (ถามยืนยัน) |
 | `platform/argocd/uninstall.sh` | ลบ ns argocd + CRD (ถามยืนยัน) |
 | `platform/argocd/README.md` | URL/creds/คำสั่ง + คำเตือน local-only |
@@ -228,7 +229,18 @@ ArgoCD รันอยู่ใน cluster แต่ **ไม่มีที่�
   helm ค่อยย้ายตอนอยากคุม config หลายจุด (ingress/SSO/HA)
 - **`server.insecure`** → UI เป็น http ไม่ต้องกดข้ามหน้าเตือน cert (เหมือน Jenkins/Sonar)
 - **password คงสุ่มไว้** ไม่ hardcode ลง git — `open.sh` echo ให้แทน
-- **install.sh apply `apps/` ให้เลย** — เพิ่ม app ใหม่ = วางไฟล์ใน `apps/` แล้วรันซ้ำ (idempotent)
+- **install.sh apply `apps/` ให้เลย** — cluster เปล่า → รันคำสั่งเดียวได้ ArgoCD ที่รู้จัก app ครบ
+- **แต่เพิ่ม app ประจำวันใช้ `apply-apps.sh`** — `install.sh` restart `argocd-server` ทุกรอบ
+  (เพื่อให้ `server.insecure` มีผล) → port-forward ตาย ต้อง `open.sh` ใหม่ แพงเกินไปถ้าจะแค่ apply ไฟล์เดียว
+
+### 🔄 วงจรใช้งานประจำวัน
+| เหตุการณ์ | ทำอะไร |
+|---|---|
+| ปิดคอม / reboot | **ไม่ต้องทำอะไร** — ArgoCD ขึ้นเองพร้อม Docker Desktop |
+| เปิดคอมมา | `bash platform/argocd/open.sh` (port-forward ตายตอน reboot) |
+| เพิ่ม/แก้ app | `bash platform/argocd/apply-apps.sh` |
+| อัปเดต/ซ่อม ArgoCD | `bash platform/argocd/install.sh` |
+| ลบทิ้งจริงๆ | `bash platform/argocd/uninstall.sh` |
 
 ### ⚠️ Gotcha ใหญ่ที่เจอ — NodePort ใช้ไม่ได้บน Docker Desktop
 Docker Desktop k8s รุ่นใหม่รัน node ใน VM แยก (แบบ kind, `desktop-control-plane` ไม่โผล่ใน `docker ps`)
@@ -246,6 +258,22 @@ bash platform/argocd/reset-password.sh   # ลบ initial secret + ล้าง 
 ```
 > ต้อง **ลบ `argocd-initial-admin-secret` ด้วย** ไม่ใช่ล้างแค่ hash — ไม่งั้น argocd-server เห็นว่ามีอยู่แล้วและไม่เขียนรหัสใหม่ลงไป
 > เช็คว่าเพี้ยนไหม: timestamp ของ `admin.passwordMtime` ต้องตรงกับ `creationTimestamp` ของ initial secret
+
+### 🧱 เพิ่ม app = แตะ 2 ชั้น (คนละหน้าที่)
+| ชั้น | ไฟล์ | บอกอะไร |
+|---|---|---|
+| manifest | `gitops/<app>/*.yaml` | app หน้าตายังไง (Deployment/Service) — **ของจริง** |
+| ทะเบียน | `platform/argocd/apps/<app>.yaml` | `Application` CR = pointer (repoURL + path + namespace) — บอก ArgoCD ว่ามี app นี้ |
+
+- **แก้ app ที่มีอยู่** (image/replicas) → แตะแค่ `gitops/` + `git push` → ArgoCD sync เอง ไม่ต้องรันสคริปต์
+- **เพิ่ม app ใหม่** → แตะทั้ง 2 ชั้น + `git push` + `apply-apps.sh` (ครั้งเดียวตอนขึ้นทะเบียน)
+- ⚠️ ArgoCD อ่าน `gitops/` **จาก GitHub** ไม่ใช่ดิสก์ — ไม่ push = ไม่มีอะไรเกิด (trap เดียวกับ Jenkinsfile)
+
+### ❓ ยังไม่ตัดสิน: manifest ของ app จริงอยู่ repo ไหน
+โน้ตเฟส 2 เขียนว่า "consumer repo มี Application CR + manifest ของตัวเอง" แต่ตอนนี้
+`gitops/sample-app/` อยู่ใน repo template นี้ → **ตั้งใจปล่อยไว้ก่อน** เพราะ sample-app จะถูกย้าย
+ออกไปเป็น consumer repo แยกอยู่แล้ว ตอนนั้น `gitops/sample-app/` ย้ายตามไปเอง
+คำถามนี้จะตอบตัวเองตอนย้าย — ไม่ต้องตัดสินก่อนมี app จริง
 
 ### ✅ verify แล้ว
 `http://localhost:30080` → HTTP 200 (title: Argo CD) · `sample-app` = **Synced / Healthy** · รัน `open.sh` ซ้ำไม่เปิดซ้อน

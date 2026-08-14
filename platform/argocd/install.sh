@@ -61,7 +61,8 @@ kubectl -n "${NAMESPACE}" rollout status deployment argocd-server --timeout=180s
 kubectl -n "${NAMESPACE}" rollout status deployment argocd-repo-server --timeout=180s
 
 # ── 5. Application ทั้งหมดใน apps/ ───────────────────────────────────────────
-# เพิ่ม app ใหม่ = วางไฟล์ใน apps/ แล้วรันสคริปต์นี้ซ้ำ
+# ⚠️ ถ้าจะแค่ "เพิ่ม/แก้ app" ใช้ apply-apps.sh แทน — สคริปต์นี้ restart argocd-server ด้วย
+#    (port-forward ที่เปิดไว้จะตาย ต้องรัน open.sh ใหม่) ซึ่งไม่จำเป็นสำหรับการเพิ่ม app
 if compgen -G "${HERE}/apps/*.yaml" > /dev/null; then
   echo "▶ apply Application ใน apps/"
   kubectl apply -f "${HERE}/apps/"

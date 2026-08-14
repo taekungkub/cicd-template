@@ -37,7 +37,29 @@ bash platform/argocd/install.sh
 3. patch `svc/argocd-server` เป็น NodePort `30080` (เปลี่ยนได้ด้วย `ARGOCD_NODEPORT=...`)
 4. apply ทุกไฟล์ใน `apps/`
 
-**เพิ่ม app ใหม่:** วางไฟล์ `Application` ใน `apps/` แล้วรัน `install.sh` ซ้ำ
+## เพิ่ม app ใหม่
+
+```bash
+# 1. สร้างไฟล์ Application ใน apps/ (ก๊อป sample-app.yaml เป็นแบบ แล้วแก้ name/path/namespace)
+# 2. ลงทะเบียน
+bash platform/argocd/apply-apps.sh
+```
+
+ใช้ `apply-apps.sh` ไม่ใช่ `install.sh` — `install.sh` restart `argocd-server` ด้วย
+ทำให้ port-forward ตาย ต้องรัน `open.sh` ใหม่โดยไม่จำเป็น
+
+## วงจรใช้งานประจำวัน
+
+| เหตุการณ์ | ทำอะไร |
+|---|---|
+| ปิดคอม / reboot | **ไม่ต้องทำอะไร** — k8s เก็บ state ไว้ ArgoCD ขึ้นเองพร้อม Docker Desktop |
+| เปิดคอมมา | `bash platform/argocd/open.sh` (เปิด port-forward ที่ตายไปตอน reboot) |
+| เพิ่ม/แก้ app | `bash platform/argocd/apply-apps.sh` |
+| อัปเดต/ซ่อมตัว ArgoCD | `bash platform/argocd/install.sh` |
+| ลบ ArgoCD ทิ้งจริงๆ | `bash platform/argocd/uninstall.sh` |
+
+> เปิดคอมมาแล้ว `open.sh` error ว่าหา deploy ไม่เจอ = Docker Desktop ยัง start k8s ไม่เสร็จ
+> (ใช้เวลา ~1–2 นาที) รอแล้วรันซ้ำ
 
 ## login ไม่ได้ — "Invalid username or password"
 
