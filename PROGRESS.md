@@ -207,6 +207,52 @@ cd compose && docker compose up -d --build
 
 ---
 
+## 2026-08-14 — `platform/argocd/` คุม ArgoCD ครบวงจร ✅ (เข้า UI ง่ายแล้ว)
+
+### ปัญหาที่แก้
+ArgoCD รันอยู่ใน cluster แต่ **ไม่มีที่มาใน repo เลย** (ติดตั้งด้วยมือ, ไม่มีสคริปต์) →
+รื้อ cluster = หาย สร้างคืนไม่ได้. เข้า UI ก็ต้อง port-forward + งม base64 password ทุกครั้ง
+
+### สิ่งที่ทำ — ไฟล์ใหม่ล้วน ไม่แตะของเดิม
+| ไฟล์ | ทำอะไร |
+|---|---|
+| `platform/argocd/install.sh` | apply manifest `v3.5.1` (`--server-side`) → `server.insecure=true` → patch svc NodePort → รอ ready → apply `apps/` ทั้งโฟลเดอร์ |
+| `platform/argocd/open.sh` | เปิด port-forward **background** + echo URL/user/password (`--stop` เพื่อปิด) |
+| `platform/argocd/reset-password.sh` | รีเซ็ตรหัส admin เมื่อ login ไม่ผ่าน (ถามยืนยัน) |
+| `platform/argocd/uninstall.sh` | ลบ ns argocd + CRD (ถามยืนยัน) |
+| `platform/argocd/README.md` | URL/creds/คำสั่ง + คำเตือน local-only |
+- แก้ `BOOTSTRAP.md` ข้อ 1+5 (เดิมเขียน helm ซึ่งไม่ตรงของจริง — เครื่องนี้ไม่มี helm)
+
+### ตัดสินใจไว้ (เหตุผล)
+- **manifest ไม่ใช่ helm** — ของจริงติดแบบนี้อยู่แล้ว, ไม่ต้องลง tool เพิ่ม/ไม่ต้องรื้อ.
+  helm ค่อยย้ายตอนอยากคุม config หลายจุด (ingress/SSO/HA)
+- **`server.insecure`** → UI เป็น http ไม่ต้องกดข้ามหน้าเตือน cert (เหมือน Jenkins/Sonar)
+- **password คงสุ่มไว้** ไม่ hardcode ลง git — `open.sh` echo ให้แทน
+- **install.sh apply `apps/` ให้เลย** — เพิ่ม app ใหม่ = วางไฟล์ใน `apps/` แล้วรันซ้ำ (idempotent)
+
+### ⚠️ Gotcha ใหญ่ที่เจอ — NodePort ใช้ไม่ได้บน Docker Desktop
+Docker Desktop k8s รุ่นใหม่รัน node ใน VM แยก (แบบ kind, `desktop-control-plane` ไม่โผล่ใน `docker ps`)
+→ **NodePort ไม่ทะลุออก localhost** และ **ไม่มี LoadBalancer provider** (`EXTERNAL-IP` ค้าง `<pending>`)
+→ ทางเข้าจริง = `port-forward` ที่ `open.sh` รันแบบ background ให้
+> patch NodePort ยังคาไว้ในสคริปต์ — ถ้าย้ายไป **k3d** (`k3d cluster create -p "30080:30080@server:0"`)
+> จะเข้าตรงๆ ได้ทันทีโดยไม่ต้อง port-forward
+
+### ⚠️ Gotcha #2 — "Invalid username or password" ทั้งที่กรอกรหัสจาก open.sh ถูก (เจอ 2 ครั้งแล้ว)
+ArgoCD เก็บ **hash** ที่ secret `argocd-secret` (`admin.password`) แต่รหัส **plain text** อยู่ที่
+secret คนละตัว (`argocd-initial-admin-secret`). ถ้า 2 ตัวมาจากคนละรอบติดตั้ง → hash ไม่ตรงกับรหัสที่โชว์
+ครั้งนี้ต่างกัน 6 ชม. (`admin.passwordMtime` = 08-13T00:00:00Z แต่ initial secret สร้าง 08-13T06:06:55Z)
+```bash
+bash platform/argocd/reset-password.sh   # ลบ initial secret + ล้าง hash + restart → สุ่มใหม่ให้ตรงกัน
+```
+> ต้อง **ลบ `argocd-initial-admin-secret` ด้วย** ไม่ใช่ล้างแค่ hash — ไม่งั้น argocd-server เห็นว่ามีอยู่แล้วและไม่เขียนรหัสใหม่ลงไป
+> เช็คว่าเพี้ยนไหม: timestamp ของ `admin.passwordMtime` ต้องตรงกับ `creationTimestamp` ของ initial secret
+
+### ✅ verify แล้ว
+`http://localhost:30080` → HTTP 200 (title: Argo CD) · `sample-app` = **Synced / Healthy** · รัน `open.sh` ซ้ำไม่เปิดซ้อน
+· `POST /api/v1/session` ด้วยรหัสจาก `open.sh` → **200** (หลัง reset-password)
+
+---
+
 ## 🔜 ทำต่อ (ตามลำดับความสำคัญ)
 
 1. เพิ่ม stage **build image จริง** (`docker build` + push registry) + **Trivy image scan** (ตอนนี้แค่ fs)
@@ -237,6 +283,7 @@ cd compose && docker compose up -d --build
 
 ## ไฟล์อ้างอิง
 - `docs/gui-setup.md` — ⭐ คู่มือตั้งค่า GUI ครบทุก service (Jenkins + OpenBao + SonarQube) URL/creds/ทุกขั้นที่กดเอง
+- `platform/argocd/README.md` — ArgoCD: install/open/uninstall + URL/creds
 - `docs/design-spec.md` — vision เต็ม 13 tools
 - `docs/mvp-spec.md` — spec ของ MVP
 - `BOOTSTRAP.md` — คำสั่ง deploy บน k8s (เฟส ArgoCD)

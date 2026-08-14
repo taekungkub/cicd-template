@@ -11,11 +11,10 @@
 
 ## 1. ArgoCD (ตัว deploy)
 ```bash
-helm repo add argo https://argoproj.github.io/argo-helm && helm repo update
-helm install argocd argo/argo-cd -n argocd --create-namespace
-# UI:  kubectl -n argocd port-forward svc/argocd-server 8080:443
-# pass: kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d
+bash platform/argocd/install.sh    # ติดตั้ง + เปิด UI ที่ http://localhost:30080 + apply apps/
+bash platform/argocd/open.sh       # ดู URL + user/password ทีหลัง
 ```
+> รายละเอียด/คำเตือน local-only ดู [`platform/argocd/README.md`](platform/argocd/README.md)
 
 ## 2. OpenBao (dev mode) + ตั้งค่า
 ```bash
@@ -45,10 +44,8 @@ helm install jenkins jenkins/jenkins -n jenkins --create-namespace -f platform/j
 ```
 
 ## 5. เชื่อม loop — ให้ ArgoCD ดู sample app
-```bash
-kubectl apply -f platform/argocd/apps/sample-app.yaml
-# ArgoCD จะ deploy gitops/sample-app/ ให้อัตโนมัติ
-```
+ข้อ 1 ทำให้แล้ว (`install.sh` apply ทุกไฟล์ใน `platform/argocd/apps/`)
+เพิ่ม app ใหม่ = วางไฟล์ `Application` ใน `apps/` แล้วรัน `install.sh` ซ้ำ
 
 ## 6. ทดสอบ loop เต็ม
 1. แก้ไฟล์ใน `app/` แล้ว push
