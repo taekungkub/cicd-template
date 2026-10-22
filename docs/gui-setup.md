@@ -93,7 +93,7 @@
 |---|---|
 | Jenkins ต่อ OpenBao ผ่าน | URL `http://openbao:8200` (ในโค้ด) + credential `openbao-token` (ข้อ 3) |
 | Secret paths | `secret/sample-app/staging` · `secret/sample-app/prod` |
-| keys ในแต่ละ path | `db_password`, `api_key`, `redis_url` |
+| keys ในแต่ละ path | `db_password`, `api_key`, `redis_url`, `greeting` (stage Deploy ส่งให้ be) |
 | Seed secret | `bash compose/seed-openbao.sh` |
 
 > ⚠️ OpenBao รัน **dev mode = เก็บใน memory** → ปิด container secret หาย ต้อง **re-seed** ทุกครั้งหลัง restart

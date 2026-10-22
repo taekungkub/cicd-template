@@ -4,6 +4,7 @@ import react from '@vitejs/plugin-react'
 // https://vite.dev/config/  (ช่อง test อ่านโดย vitest)
 export default defineConfig({
   plugins: [react()],
+  server: { proxy: { '/api': 'http://localhost:3000' } },   // npm run dev → ส่ง /api ไป be (npm start ใน be/)
   test: {
     environment: 'jsdom',
     globals: true,

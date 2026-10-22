@@ -14,12 +14,14 @@ echo "==> เขียน secret แยกตาม env (วิธี 1: secret/
 bao kv put secret/sample-app/staging \
   db_password=s3cr3t-staging \
   api_key=ak_test_stg123 \
-  redis_url=redis://redis:6379/1
+  redis_url=redis://redis:6379/1 \
+  greeting="hello from staging (OpenBao)"
 # prod
 bao kv put secret/sample-app/prod \
   db_password=s3cr3t-prod \
   api_key=ak_live_prod999 \
-  redis_url=redis://redis:6379/0
+  redis_url=redis://redis:6379/0 \
+  greeting="hello from prod (OpenBao)"
 
 echo "==> อ่านกลับเพื่อยืนยัน"
 bao kv get secret/sample-app/staging

@@ -1,8 +1,17 @@
 import { render, screen, fireEvent } from '@testing-library/react'
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import App from './App.jsx'
 
 describe('App', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ json: () => ({ message: 'hi mock' }) })))
+  })
+
+  it('แสดงข้อความจาก be', async () => {
+    render(<App />)
+    expect(await screen.findByText(/be says: hi mock/)).toBeInTheDocument()
+  })
+
   it('แสดงหัวข้อ sample-app', () => {
     render(<App />)
     expect(screen.getByText(/CICD Template — sample-app/i)).toBeInTheDocument()

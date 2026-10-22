@@ -29,10 +29,11 @@ pipeline {
 
   stages {
     // ── stage ของ repo เอง เขียนตามภาษาของตัวเอง ─────────────────────────────
-    stage('Build') {
+    // monorepo: fe (Vite+React) + be (Node) ใน repo เดียว → build/test แยก stage ต่อ service
+    stage('Build fe') {
       steps {
-        echo "🔨 building sample-app (Vite+React, env=${TARGET_ENV})..."
-        dir('app') {
+        echo "🔨 building fe (Vite+React, env=${TARGET_ENV})..."
+        dir('app/fe') {
           sh 'npm ci'
           sh 'npm run build'
         }
@@ -42,7 +43,8 @@ pipeline {
     stage('Test') {
       steps {
         echo '🧪 running tests + coverage...'
-        dir('app') { sh 'npm run test:coverage' }   // สร้าง coverage/lcov.info ให้ Sonar อ่าน
+        dir('app/fe') { sh 'npm run test:coverage' }   // สร้าง coverage/lcov.info ให้ Sonar อ่าน
+        dir('app/be') { sh 'npm test' }                // node --test ไม่มี dependency ไม่ต้อง npm ci
       }
     }
 
@@ -55,10 +57,10 @@ pipeline {
     }
 
     // ── code quality/SAST: SonarQube (hard gate) — ไม่ผ่าน quality gate = หยุด build ──
-    // รันใน app/ เพื่อให้ path ใน lcov (src/...) ตรงกับ sources → coverage แมปถูก
+    // รันใน app/fe/ เพื่อให้ path ใน lcov (src/...) ตรงกับ sources → coverage แมปถูก
     stage('SonarQube') {
       steps {
-        dir('app') {
+        dir('app/fe') {
           sonarScan(projectKey: 'sample-app', sources: 'src', gate: true,
                     extraArgs: '-Dsonar.javascript.lcov.reportPaths=coverage/lcov.info ' +
                                '-Dsonar.coverage.exclusions=src/main.jsx')   // ไม่นับ bootstrap ใน coverage
@@ -69,16 +71,15 @@ pipeline {
 
     // ── ต้องใช้ secret ตรงไหน ก็ห่อด้วย withOpenBao ตรงนั้น ───────────────────
     // env: TARGET_ENV → ดึงจาก secret/sample-app/<env> อัตโนมัติ (วิธี 1)
+    // ponytail: up -d ไม่มี health check/rollback — ถ้า be พัง deploy ยังขึ้นเขียว; เพิ่ม smoke curl เมื่อเริ่มใช้จริง
     stage('Deploy') {
       steps {
         withOpenBao(app: 'sample-app', env: TARGET_ENV, secrets: [
-          [envVar: 'DB_PASSWORD', vaultKey: 'db_password'],
-          [envVar: 'API_KEY',     vaultKey: 'api_key'],
-          [envVar: 'REDIS_URL',   vaultKey: 'redis_url'],
+          [envVar: 'GREETING', vaultKey: 'greeting'],
         ]) {
-          // ในบล็อกนี้ $DB_PASSWORD / $API_KEY / $REDIS_URL ใช้ได้เลย (masked ใน log)
-          sh 'echo "deploying to ${TARGET_ENV} — DB_PASSWORD length = ${#DB_PASSWORD}"'
-          // ตัวอย่างจริง: sh './deploy.sh'
+          // on-prem: docker compose บน host (ผ่าน docker.sock) — env จาก OpenBao ไหลเข้า ${GREETING} ใน compose
+          // -p ตั้งชื่อ project คงที่ → deploy ซ้ำ = อัปเดต container เดิม ไม่สร้างชุดใหม่
+          dir('app') { sh 'docker compose -p sample-app up -d --build --remove-orphans' }
         }
       }
     }

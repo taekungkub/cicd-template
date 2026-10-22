@@ -1,7 +1,15 @@
-# app/docker-compose.yml — local dev ของ repo แอปเท่านั้น (ไม่ใช้ deploy จริง)
-# รัน: cd app && docker compose up --build  → http://localhost:8080
-# staging/prod: ArgoCD deploy จาก gitops, config/secret มาจาก OpenBao (secret/sample-app/<env>)
+﻿# app/docker-compose.yml — ใช้ทั้ง local dev และ deploy on-prem (ไฟล์เดียว)
+# local:  cd app && docker compose up --build  → http://localhost:18080
+# deploy: Jenkins stage 'Deploy' รันไฟล์นี้บน host เดียวกัน โดย env มาจาก OpenBao (withOpenBao)
+# ponytail: Jenkins กับแอปอยู่ host เดียวกัน — แยก server เมื่อไหร่ ตั้ง DOCKER_HOST=ssh://user@server ใน stage Deploy
 services:
-  app:
-    build: .
-    ports: ["8080:80"]
+  fe:
+    build: ./fe
+    ports: ["18080:80"]      # /api/* → nginx proxy ไป be  (host 8080 มักชน → ใช้ 18080)
+    depends_on: [be]
+    restart: unless-stopped
+  be:
+    build: ./be
+    restart: unless-stopped
+    environment:
+      GREETING: ${GREETING:-hello from local compose}   # deploy: Jenkins ส่งค่าจาก OpenBao มาเป็น env
