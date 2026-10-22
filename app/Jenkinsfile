@@ -27,16 +27,17 @@ pipeline {
       }
     }
 
+    // build image ตาม Dockerfile ของ fe/be — Deploy ใช้ image ชุดนี้ ไม่ build ซ้ำ
     stage('Build') {
       steps {
-        dir('app/fe') { sh 'npm ci && npm run build' }
-        dir('app/be') { sh 'node --check server.js' }   // Node ล้วน ไม่มี build step → syntax check แทน
+        dir('app') { sh 'docker compose -p sample-app build' }
       }
     }
 
+    // test รันบน Jenkins (ไม่ใช่ใน image) → coverage/lcov.info อยู่ใน workspace ให้ SonarQube อ่าน
     stage('Test') {
       steps {
-        dir('app/fe') { sh 'npm run test:coverage' }    // coverage/lcov.info → SonarQube
+        dir('app/fe') { sh 'npm ci && npm run test:coverage' }
         dir('app/be') { sh 'npm test' }
       }
     }
@@ -64,7 +65,7 @@ pipeline {
         withOpenBao(app: 'sample-app', env: TARGET_ENV, secrets: [
           [envVar: 'GREETING', vaultKey: 'greeting'],
         ]) {
-          dir('app') { sh 'docker compose -p sample-app up -d --build --remove-orphans' }
+          dir('app') { sh 'docker compose -p sample-app up -d --remove-orphans' }
         }
       }
     }
