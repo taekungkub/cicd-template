@@ -1,0 +1,7 @@
+# app/docker-compose.yml — local dev ของ repo แอปเท่านั้น (ไม่ใช้ deploy จริง)
+# รัน: cd app && docker compose up --build  → http://localhost:8080
+# staging/prod: ArgoCD deploy จาก gitops, config/secret มาจาก OpenBao (secret/sample-app/<env>)
+services:
+  app:
+    build: .
+    ports: ["8080:80"]
