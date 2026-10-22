@@ -29,6 +29,14 @@ pipeline {
 
   stages {
     // ── stage ของ repo เอง เขียนตามภาษาของตัวเอง ─────────────────────────────
+    // ── format gate: Prettier --check (ไม่แก้โค้ดใน CI — fail ให้ dev รัน --write แล้ว push ใหม่) ──
+    // version pin ไว้ให้ผลเหมือนเครื่อง dev; config ที่ app/.prettierrc
+    stage('Prettier') {
+      steps {
+        dir('app') { sh 'npx -y prettier@3.3.3 --check .' }
+      }
+    }
+
     // monorepo: fe (Vite+React) + be (Node) ใน repo เดียว → build/test แยก stage ต่อ service
     stage('Build fe') {
       steps {

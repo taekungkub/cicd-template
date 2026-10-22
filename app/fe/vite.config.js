@@ -4,16 +4,16 @@ import react from '@vitejs/plugin-react'
 // https://vite.dev/config/  (ช่อง test อ่านโดย vitest)
 export default defineConfig({
   plugins: [react()],
-  server: { proxy: { '/api': 'http://localhost:3000' } },   // npm run dev → ส่ง /api ไป be (npm start ใน be/)
+  server: { proxy: { '/api': 'http://localhost:3000' } }, // npm run dev → ส่ง /api ไป be (npm start ใน be/)
   test: {
     environment: 'jsdom',
     globals: true,
     setupFiles: './src/setupTests.js',
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'lcov'],   // lcov → ให้ SonarQube อ่าน coverage
+      reporter: ['text', 'lcov'], // lcov → ให้ SonarQube อ่าน coverage
       include: ['src/**'],
-      exclude: ['src/main.jsx', 'src/setupTests.js', '**/*.test.jsx'],  // bootstrap/test ไม่ต้องนับ
+      exclude: ['src/main.jsx', 'src/setupTests.js', '**/*.test.jsx'], // bootstrap/test ไม่ต้องนับ
     },
   },
 })

@@ -9,7 +9,8 @@ export const app = createServer((req, res) => {
     res.end(JSON.stringify(body))
   }
   if (req.url === '/api/health') return send(200, { status: 'ok' })
-  if (req.url === '/api/hello') return send(200, { message: process.env.GREETING || 'hello from be' })
+  if (req.url === '/api/hello')
+    return send(200, { message: process.env.GREETING || 'hello from be' })
   send(404, { error: 'not found' })
 })
 

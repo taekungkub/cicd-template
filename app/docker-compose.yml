@@ -5,11 +5,11 @@
 services:
   fe:
     build: ./fe
-    ports: ["18080:80"]      # /api/* → nginx proxy ไป be  (host 8080 มักชน → ใช้ 18080)
+    ports: ['18080:80'] # /api/* → nginx proxy ไป be  (host 8080 มักชน → ใช้ 18080)
     depends_on: [be]
     restart: unless-stopped
   be:
     build: ./be
     restart: unless-stopped
     environment:
-      GREETING: ${GREETING:-hello from local compose}   # deploy: Jenkins ส่งค่าจาก OpenBao มาเป็น env
+      GREETING: ${GREETING:-hello from local compose} # deploy: Jenkins ส่งค่าจาก OpenBao มาเป็น env

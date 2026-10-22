@@ -4,7 +4,10 @@ import App from './App.jsx'
 
 describe('App', () => {
   beforeEach(() => {
-    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ json: () => ({ message: 'hi mock' }) })))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve({ json: () => ({ message: 'hi mock' }) })),
+    )
   })
 
   it('แสดงข้อความจาก be', async () => {
