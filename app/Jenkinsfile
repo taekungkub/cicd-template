@@ -1,102 +1,69 @@
-// app/Jenkinsfile — consumer ตัวอย่าง
-// ─────────────────────────────────────────────────────────────────────────────
-// Jenkinsfile ปกติเต็มรูป — repo ปลายทาง "เป็นเจ้าของ" build/test/deploy เอง
-// (แต่ละ repo คนละภาษาได้ตามใจ) สิ่งเดียวที่ดึงจาก "template กลาง" คือ
-// step `withOpenBao {}` สำหรับดึง env/secret จาก OpenBao ที่ config เดียวกันทุก repo
+// app/Jenkinsfile — sample-app (monorepo: fe = Vite+React, be = Node)
 //
-// การแยก env (staging/prod):
-//   วิธี 1 — secret แยก path ที่ OpenBao: secret/sample-app/staging | secret/sample-app/prod
-//   วิธี 3 — branch-based: main → prod, branch อื่น → staging  (คำนวณที่ TARGET_ENV ด้านล่าง)
-// ─────────────────────────────────────────────────────────────────────────────
+// Flow: Lint → Build → Test → Scan → Deploy (docker compose บน host เดียวกับ Jenkins)
+// Shared steps จาก library กลาง (vars/): trivyScan, sonarScan, withOpenBao
+// Secret: OpenBao path secret/sample-app/<TARGET_ENV>
 @Library('cicd-template@main') _
 
 pipeline {
   agent any
 
-  triggers {
-    pollSCM('* * * * *')   // poll SCM ทุก 1 นาที
-  }
-
+  triggers { pollSCM('* * * * *') }
   options {
     timestamps()
     disableConcurrentBuilds()
   }
 
   environment {
-    // fixed env — repo นี้ยิง prod อย่างเดียว (ถ้าจะทำ branch-based: env.BRANCH_NAME == 'main' ? 'prod' : 'staging')
+    // TODO: branch-based ต้องเป็น Multibranch job → env.BRANCH_NAME == 'main' ? 'prod' : 'staging'
     TARGET_ENV = 'prod'
   }
 
   stages {
-    // ── stage ของ repo เอง เขียนตามภาษาของตัวเอง ─────────────────────────────
-    // ── format gate: Prettier --check (ไม่แก้โค้ดใน CI — fail ให้ dev รัน --write แล้ว push ใหม่) ──
-    // version pin ไว้ให้ผลเหมือนเครื่อง dev; config ที่ app/.prettierrc
-    stage('Prettier') {
+    // check อย่างเดียว ไม่แก้โค้ด — fail ให้รัน `npx prettier --write .` ใน app/ แล้ว push ใหม่
+    stage('Lint') {
       steps {
         dir('app') { sh 'npx -y prettier@3.3.3 --check .' }
       }
     }
 
-    // monorepo: fe (Vite+React) + be (Node) ใน repo เดียว → build/test แยก stage ต่อ service
-    stage('Build fe') {
+    stage('Build') {
       steps {
-        echo "🔨 building fe (Vite+React, env=${TARGET_ENV})..."
-        dir('app/fe') {
-          sh 'npm ci'
-          sh 'npm run build'
-        }
-      }
-    }
-
-    // be: Node stdlib ล้วน ไม่มี dependency/compile → ไม่มีอะไรให้ build (image build ตอน Deploy)
-    // ถ้าเปลี่ยนเป็น NestJS/TS → เพิ่ม `npm ci && npm run build` ตรงนี้
-    stage('Build be') {
-      steps {
-        echo '🔨 checking be (Node, no build step)...'
-        dir('app/be') { sh 'node --check server.js' }   // syntax check
+        dir('app/fe') { sh 'npm ci && npm run build' }
+        dir('app/be') { sh 'node --check server.js' }   // Node ล้วน ไม่มี build step → syntax check แทน
       }
     }
 
     stage('Test') {
       steps {
-        echo '🧪 running tests + coverage...'
-        dir('app/fe') { sh 'npm run test:coverage' }   // สร้าง coverage/lcov.info ให้ Sonar อ่าน
-        dir('app/be') { sh 'npm test' }                // node --test ไม่มี dependency ไม่ต้อง npm ci
+        dir('app/fe') { sh 'npm run test:coverage' }    // coverage/lcov.info → SonarQube
+        dir('app/be') { sh 'npm test' }
       }
     }
 
-    // ── security gate: Trivy สแกน vuln+secret ก่อน deploy (เจอ HIGH/CRITICAL → fail) ──
-    // แยก stage ต่อ tool → fail แล้วรู้ทันทีว่าตัวไหนล่ม (ทีหลังเพิ่ม stage 'SonarQube' แยก)
-    stage('Trivy scan') {
-      steps {
-        trivyScan()   // จาก template กลาง — ปรับ severity/exitCode ได้ ดู vars/trivyScan.groovy
-      }
+    stage('Trivy') {
+      steps { trivyScan() }                             // HIGH/CRITICAL → fail
     }
 
-    // ── code quality/SAST: SonarQube (hard gate) — ไม่ผ่าน quality gate = หยุด build ──
-    // รันใน app/fe/ เพื่อให้ path ใน lcov (src/...) ตรงกับ sources → coverage แมปถูก
-    // ปิดชั่วคราว: ยังไม่ได้รัน sonarqube container — เปิดกลับหลังตั้ง docs/gui-setup.md ข้อ 5+7
+    // ปิดไว้จนกว่าจะรัน sonarqube container (docs/gui-setup.md ข้อ 5, 7)
     // stage('SonarQube') {
     //   steps {
     //     dir('app/fe') {
     //       sonarScan(projectKey: 'sample-app', sources: 'src', gate: true,
     //                 extraArgs: '-Dsonar.javascript.lcov.reportPaths=coverage/lcov.info ' +
-    //                            '-Dsonar.coverage.exclusions=src/main.jsx')   // ไม่นับ bootstrap ใน coverage
+    //                            '-Dsonar.coverage.exclusions=src/main.jsx')
     //     }
     //   }
     // }
 
-
-    // ── ต้องใช้ secret ตรงไหน ก็ห่อด้วย withOpenBao ตรงนั้น ───────────────────
-    // env: TARGET_ENV → ดึงจาก secret/sample-app/<env> อัตโนมัติ (วิธี 1)
-    // ponytail: up -d ไม่มี health check/rollback — ถ้า be พัง deploy ยังขึ้นเขียว; เพิ่ม smoke curl เมื่อเริ่มใช้จริง
+    // GREETING จาก OpenBao → ${GREETING} ใน docker-compose.yml
+    // -p ชื่อคงที่ → deploy ซ้ำ = อัปเดต container เดิม
+    // ponytail: ไม่มี health check/rollback — เพิ่ม curl /api/health เมื่อใช้จริง
     stage('Deploy') {
       steps {
         withOpenBao(app: 'sample-app', env: TARGET_ENV, secrets: [
           [envVar: 'GREETING', vaultKey: 'greeting'],
         ]) {
-          // on-prem: docker compose บน host (ผ่าน docker.sock) — env จาก OpenBao ไหลเข้า ${GREETING} ใน compose
-          // -p ตั้งชื่อ project คงที่ → deploy ซ้ำ = อัปเดต container เดิม ไม่สร้างชุดใหม่
           dir('app') { sh 'docker compose -p sample-app up -d --build --remove-orphans' }
         }
       }
